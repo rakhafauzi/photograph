@@ -1,0 +1,299 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== USER ====================
+model User {
+  id         String   @id @default(uuid())
+  email      String   @unique
+  password   String
+  name       String
+  phone      String?
+  role       String   @default("customer") // customer | admin
+  avatar     String?
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+  deletedAt  DateTime? @map("deleted_at")
+
+  // Relations
+  bookings         Booking[]
+  testimonials     Testimonial[]
+  refreshTokens    RefreshToken[]
+  verifiedPayments Payment[] @relation("VerifiedPayments")
+
+  @@map("users")
+}
+
+// ==================== REFRESH TOKEN ====================
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String   @map("user_id")
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
+}
+
+// ==================== CATEGORY (Wedding, Wisuda, etc) ====================
+model Category {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  slug        String   @unique
+  description String?
+  icon        String?
+  image       String?
+  sortOrder   Int      @default(0) @map("sort_order")
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
+
+  packages  Package[]
+  portfolios Portfolio[]
+
+  @@map("categories")
+}
+
+// ==================== PACKAGE ====================
+model Package {
+  id          String   @id @default(uuid())
+  categoryId  String   @map("category_id")
+  name        String
+  slug        String
+  price       Float
+  description String?
+  duration    String? // e.g., "8 Jam", "Full Day"
+  photographer Int?    @default(1) @map("photographer")
+  videographer Int?   @default(0) @map("videographer")
+  photoCount  Int?    @map("photo_count")
+  videoCount  Int?    @map("video_count")
+  hasDrone    Boolean  @default(false) @map("has_drone")
+  hasAlbum    Boolean  @default(false) @map("has_album")
+  hasPrint    Boolean  @default(false) @map("has_print")
+  hasFrame    Boolean  @default(false) @map("has_frame")
+  hasCinematic Boolean @default(false) @map("has_cinematic")
+  hasHighlight Boolean @default(false) @map("has_highlight")
+  location    String?
+  isPopular   Boolean  @default(false) @map("is_popular")
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
+
+  // Relations
+  category    Category    @relation(fields: [categoryId], references: [id])
+  benefits    PackageBenefit[]
+  galleries   PackageGallery[]
+  bookings    Booking[]
+  cartItems   CartItem[]
+
+  @@map("packages")
+}
+
+// ==================== PACKAGE BENEFIT ====================
+model PackageBenefit {
+  id        String   @id @default(uuid())
+  packageId String   @map("package_id")
+  benefit   String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  package Package @relation(fields: [packageId], references: [id], onDelete: Cascade)
+
+  @@map("package_benefits")
+}
+
+// ==================== PACKAGE GALLERY ====================
+model PackageGallery {
+  id        String   @id @default(uuid())
+  packageId String   @map("package_id")
+  image     String
+  caption   String?
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  package Package @relation(fields: [packageId], references: [id], onDelete: Cascade)
+
+  @@map("package_galleries")
+}
+
+// ==================== BOOKING ====================
+model Booking {
+  id            String   @id @default(uuid())
+  invoiceNumber String   @unique @map("invoice_number")
+  userId        String?  @map("user_id")
+  packageId     String   @map("package_id")
+  name          String
+  email         String
+  phone         String   @map("whatsapp")
+  address       String?
+  eventLocation String?  @map("event_location")
+  eventDate     DateTime @map("event_date")
+  eventTime     String   @map("event_time")
+  notes         String?
+  totalPrice    Float    @map("total_price")
+  downPayment   Float    @default(0) @map("down_payment")
+  remainingPayment Float @default(0) @map("remaining_payment")
+  status        String   @default("pending") // pending | waiting_payment | processed | confirmed | completed | cancelled
+  paymentStatus String   @default("unpaid") // unpaid | waiting_verification | paid | rejected
+  cancellationReason String? @map("cancellation_reason")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  deletedAt     DateTime? @map("deleted_at")
+
+  // Relations
+  user      User?     @relation(fields: [userId], references: [id])
+  package   Package   @relation(fields: [packageId], references: [id])
+  payments  Payment[]
+
+  @@map("bookings")
+}
+
+// ==================== PAYMENT ====================
+model Payment {
+  id              String   @id @default(uuid())
+  bookingId       String   @map("booking_id")
+  amount          Float
+  paymentMethod   String?  @map("payment_method") // transfer
+  proofImage      String?  @map("proof_image")
+  bankName        String?  @map("bank_name")
+  accountName     String?  @map("account_name")
+  accountNumber   String?  @map("account_number")
+  transferDate    DateTime? @map("transfer_date")
+  status          String   @default("waiting_verification") // waiting_verification | verified | rejected
+  verifiedBy      String?  @map("verified_by")
+  verifiedAt      DateTime? @map("verified_at")
+  notes           String?
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  admin   User?   @relation("VerifiedPayments", fields: [verifiedBy], references: [id])
+
+  @@map("payments")
+}
+
+// ==================== CART ====================
+model CartItem {
+  id        String   @id @default(uuid())
+  sessionId String   @map("session_id")
+  packageId String   @map("package_id")
+  eventDate DateTime? @map("event_date")
+  eventTime String?  @map("event_time")
+  quantity  Int      @default(1)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  package Package @relation(fields: [packageId], references: [id])
+
+  @@map("cart_items")
+}
+
+// ==================== PORTFOLIO ====================
+model Portfolio {
+  id          String   @id @default(uuid())
+  categoryId  String?  @map("category_id")
+  title       String
+  slug        String   @unique
+  description String?
+  coverImage  String   @map("cover_image")
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
+
+  // Relations
+  category Category?       @relation(fields: [categoryId], references: [id])
+  images   PortfolioImage[]
+
+  @@map("portfolios")
+}
+
+// ==================== PORTFOLIO IMAGE ====================
+model PortfolioImage {
+  id          String   @id @default(uuid())
+  portfolioId String   @map("portfolio_id")
+  image       String
+  caption     String?
+  sortOrder   Int      @default(0) @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  portfolio Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+
+  @@map("portfolio_images")
+}
+
+// ==================== TESTIMONIAL ====================
+model Testimonial {
+  id        String   @id @default(uuid())
+  userId    String?  @map("user_id")
+  name      String
+  photo     String?
+  rating    Int      @default(5) // 1-5
+  comment   String
+  isApproved Boolean @default(false) @map("is_approved")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@map("testimonials")
+}
+
+// ==================== FAQ ====================
+model Faq {
+  id        String   @id @default(uuid())
+  question  String
+  answer    String
+  sortOrder Int      @default(0) @map("sort_order")
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@map("faqs")
+}
+
+// ==================== WEBSITE SETTINGS ====================
+model WebsiteSetting {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  value       String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("website_settings")
+}
+
+// ==================== CONTACT ====================
+model Contact {
+  id        String   @id @default(uuid())
+  type      String   // whatsapp | instagram | facebook | tiktok | email | google_maps
+  label     String
+  value     String
+  icon      String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("contacts")
+}
+
+// ==================== AVAILABLE HOUR ====================
+model AvailableHour {
+  id      String @id @default(uuid())
+  time    String // "08:00", "09:00", etc
+  isActive Boolean @default(true)
+
+  @@map("available_hours")
+}
