@@ -27,11 +27,11 @@ export const loginSchema = z.object({
 const generateTokens = (payload: JwtPayload) => {
   const accessToken = jwt.sign(payload, config.jwt.secret, {
     expiresIn: config.jwt.expiresIn,
-  });
+  } as jwt.SignOptions);
 
   const refreshToken = jwt.sign(payload, config.jwt.refreshSecret, {
     expiresIn: config.jwt.refreshExpiresIn,
-  });
+  } as jwt.SignOptions);
 
   return { accessToken, refreshToken };
 };
