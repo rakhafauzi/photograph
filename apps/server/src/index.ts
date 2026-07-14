@@ -3,6 +3,8 @@ import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import path from 'path';
+import fs from 'fs';
+import { execSync } from 'child_process';
 import { config } from './config';
 import { errorHandler } from './middlewares/errorHandler';
 
@@ -90,12 +92,56 @@ app.get('/api/health', (_req, res) => {
   res.json({ success: true, message: 'Fotografi Booking System API is running' });
 });
 
+// Auto-run database schema push in production (first run only)
+if (process.env.NODE_ENV === 'production') {
+  const prismaSchema = path.join(__dirname, '../prisma/schema.prisma');
+  
+  // Ensure upload directory exists
+  fs.mkdirSync(config.upload.dir, { recursive: true });
+  
+  console.log('📦 Ensuring database schema is up-to-date...');
+  try {
+    execSync(`npx prisma db push --schema="${prismaSchema}"`, {
+      cwd: path.join(__dirname, '..'),
+      stdio: 'inherit',
+      env: { ...process.env, DATABASE_URL: config.database.url },
+    });
+    console.log('✅ Database schema synced');
+  } catch (err) {
+    console.warn('⚠️  Failed to sync database schema:', err);
+  }
+}
+
+// Serve React client build in production
+if (process.env.NODE_ENV === 'production') {
+  const clientDistPath = path.join(__dirname, '../../client/dist');
+
+  if (fs.existsSync(clientDistPath)) {
+    console.log('📦 Serving React client build from:', clientDistPath);
+    app.use(express.static(clientDistPath));
+
+    // All non-API routes → React SPA
+    app.get('*', (_req, res) => {
+      const indexPath = path.join(clientDistPath, 'index.html');
+      if (fs.existsSync(indexPath)) {
+        res.sendFile(indexPath);
+      } else {
+        res.status(404).json({ success: false, message: 'Client build not found. Run npm run build first.' });
+      }
+    });
+  } else {
+    console.warn('⚠️  Client dist folder not found at', clientDistPath);
+    console.warn('   Build the client first: cd apps/client && npm run build');
+  }
+}
+
 // Error Handler
 app.use(errorHandler);
 
 // Start Server
 app.listen(config.port, () => {
-  console.log(`🚀 Server running on http://localhost:${config.port}`);
+  const mode = process.env.NODE_ENV || 'development';
+  console.log(`🚀 Server running in ${mode} mode on http://localhost:${config.port}`);
   console.log(`📡 API available at http://localhost:${config.port}/api`);
 });
 
