@@ -132,7 +132,7 @@ export const refreshToken = async (req: Request, res: Response): Promise<void> =
     throw new AppError('Refresh token is required', 400);
   }
 
-  const storedToken = await prisma.refreshToken.findUnique({
+  const storedToken = await prisma.refreshToken.findFirst({
     where: { token },
     include: { user: true },
   });
