@@ -17,9 +17,12 @@ export const uploadPaymentSchema = z.object({
 });
 
 export const getAll = async (req: Request, res: Response): Promise<void> => {
-  const { page = '1', limit = '10', status, bookingId } = req.query;
-  const pageNum = parseInt(page as string);
-  const limitNum = parseInt(limit as string);
+  const page = (req.query.page as string) || '1';
+  const limit = (req.query.limit as string) || '10';
+  const status = req.query.status as string | undefined;
+  const bookingId = req.query.bookingId as string | undefined;
+  const pageNum = parseInt(page);
+  const limitNum = parseInt(limit);
   const skip = (pageNum - 1) * limitNum;
 
   const where: any = {};
@@ -166,6 +169,8 @@ export const verifyPayment = async (req: Request, res: Response): Promise<void> 
 
   if (!payment) throw new AppError('Payment not found', 404);
 
+  const paymentWithBooking = payment as any;
+
   const updateData: any = {
     status,
     verifiedBy: req.user?.userId,
@@ -186,7 +191,7 @@ export const verifyPayment = async (req: Request, res: Response): Promise<void> 
       _sum: { amount: true },
     });
 
-    const bookingTotal = payment.booking.totalPrice;
+    const bookingTotal = paymentWithBooking.booking.totalPrice;
     const paidAmount = totalPaid._sum.amount || 0;
 
     if (paidAmount >= bookingTotal) {

@@ -41,6 +41,7 @@ export const getAll = async (req: Request, res: Response): Promise<void> => {
     ];
   }
 
+
   const [data, total] = await Promise.all([
     prisma.user.findMany({
       where,

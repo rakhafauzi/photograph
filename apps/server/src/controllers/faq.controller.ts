@@ -59,8 +59,8 @@ export const create = async (req: Request, res: Response): Promise<void> => {
   const data = await prisma.faq.create({
     data: {
       id: generateId(),
-      ...req.body,
-      sortOrder: req.body.sortOrder || 0,
+      ...(req.body as any),
+      sortOrder: (req.body as any).sortOrder || 0,
     },
   });
 
@@ -72,7 +72,7 @@ export const update = async (req: Request, res: Response): Promise<void> => {
   const existing = await prisma.faq.findFirst({ where: { id, deletedAt: null } });
   if (!existing) throw new AppError('FAQ not found', 404);
 
-  const data = await prisma.faq.update({ where: { id }, data: req.body });
+  const data = await prisma.faq.update({ where: { id }, data: req.body as any });
   sendSuccess(res, data, 'FAQ updated');
 };
 

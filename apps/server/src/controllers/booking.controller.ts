@@ -94,9 +94,16 @@ const getBookingAvailabilitySettings = async () => {
 };
 
 export const getAll = async (req: Request, res: Response): Promise<void> => {
-  const { search, page = '1', limit = '10', status, paymentStatus, startDate, endDate, packageId } = req.query;
-  const pageNum = parseInt(page as string);
-  const limitNum = parseInt(limit as string);
+  const search = req.query.search as string | undefined;
+  const page = (req.query.page as string) || '1';
+  const limit = (req.query.limit as string) || '10';
+  const status = req.query.status as string | undefined;
+  const paymentStatus = req.query.paymentStatus as string | undefined;
+  const startDate = req.query.startDate as string | undefined;
+  const endDate = req.query.endDate as string | undefined;
+  const packageId = req.query.packageId as string | undefined;
+  const pageNum = parseInt(page);
+  const limitNum = parseInt(limit);
   const skip = (pageNum - 1) * limitNum;
 
   const where: any = { deletedAt: null };
@@ -138,9 +145,11 @@ export const getAll = async (req: Request, res: Response): Promise<void> => {
 };
 
 export const getMyBookings = async (req: Request, res: Response): Promise<void> => {
-  const { page = '1', limit = '10', status } = req.query;
-  const pageNum = parseInt(page as string);
-  const limitNum = parseInt(limit as string);
+  const page = (req.query.page as string) || '1';
+  const limit = (req.query.limit as string) || '10';
+  const status = req.query.status as string | undefined;
+  const pageNum = parseInt(page);
+  const limitNum = parseInt(limit);
   const skip = (pageNum - 1) * limitNum;
 
   const where: any = {
@@ -371,7 +380,8 @@ export const trackBooking = async (req: Request, res: Response): Promise<void> =
 };
 
 export const getCalendarEvents = async (req: Request, res: Response): Promise<void> => {
-  const { startDate, endDate } = req.query;
+  const startDate = req.query.startDate as string | undefined;
+  const endDate = req.query.endDate as string | undefined;
 
   const where: any = {
     deletedAt: null,
@@ -403,7 +413,10 @@ export const getCalendarEvents = async (req: Request, res: Response): Promise<vo
 };
 
 export const getBookedDates = async (req: Request, res: Response): Promise<void> => {
-  const { month, year, startDate, endDate } = req.query;
+  const month = req.query.month as string | undefined;
+  const year = req.query.year as string | undefined;
+  const startDate = req.query.startDate as string | undefined;
+  const endDate = req.query.endDate as string | undefined;
 
   const start = startDate
     ? dayjs(startDate as string).startOf('day')

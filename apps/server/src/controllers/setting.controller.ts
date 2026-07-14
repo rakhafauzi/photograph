@@ -22,7 +22,7 @@ export const getByKey = async (req: Request, res: Response): Promise<void> => {
 };
 
 export const update = async (req: Request, res: Response): Promise<void> => {
-  const settings = req.body; // { key: value, ... }
+  const settings = req.body as Record<string, string>; // { key: value, ... }
 
   const updates = await Promise.all(
     Object.entries(settings).map(([key, value]) =>

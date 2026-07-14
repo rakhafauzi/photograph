@@ -32,7 +32,7 @@ export const getActive = async (req: Request, res: Response): Promise<void> => {
 
 export const create = async (req: Request, res: Response): Promise<void> => {
   const data = await prisma.contact.create({
-    data: { id: generateId(), ...req.body },
+    data: { id: generateId(), ...(req.body as any) },
   });
 
   sendSuccess(res, data, 'Contact created', 201);
@@ -43,7 +43,7 @@ export const update = async (req: Request, res: Response): Promise<void> => {
   const existing = await prisma.contact.findUnique({ where: { id } });
   if (!existing) throw new AppError('Contact not found', 404);
 
-  const data = await prisma.contact.update({ where: { id }, data: req.body });
+  const data = await prisma.contact.update({ where: { id }, data: req.body as any });
   sendSuccess(res, data, 'Contact updated');
 };
 

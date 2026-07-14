@@ -29,9 +29,14 @@ export const createPackageSchema = z.object({
 export const updatePackageSchema = createPackageSchema.partial();
 
 export const getAll = async (req: Request, res: Response): Promise<void> => {
-  const { search, page = '1', limit = '10', categoryId, popular, all } = req.query;
-  const pageNum = parseInt(page as string);
-  const limitNum = parseInt(limit as string);
+  const search = req.query.search as string | undefined;
+  const page = (req.query.page as string) || '1';
+  const limit = (req.query.limit as string) || '10';
+  const categoryId = req.query.categoryId as string | undefined;
+  const popular = req.query.popular as string | undefined;
+  const all = req.query.all as string | undefined;
+  const pageNum = parseInt(page);
+  const limitNum = parseInt(limit);
   const skip = (pageNum - 1) * limitNum;
 
   const where: any = { deletedAt: null };
