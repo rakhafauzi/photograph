@@ -7,7 +7,6 @@ import {
   FolderKanban,
   Users,
   UserRound,
-  CalendarDays,
   Star,
   BarChart3,
   Globe,
@@ -120,12 +119,6 @@ export const sidebarMenu: SidebarMenuItem[] = [
       { label: 'Admin', href: '/admin/team?role=admin' },
       { label: 'Freelance', href: '/admin/team?role=freelance' },
     ],
-  },
-  {
-    label: 'Kalender',
-    icon: CalendarDays,
-    href: '/admin/calendar',
-    isActive: (pathname) => pathname === '/admin/calendar',
   },
   {
     label: 'Testimoni',

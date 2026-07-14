@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Camera, ChevronLeft, ChevronRight, Check, Clock, MapPin, Users, Calendar as CalendarIcon } from 'lucide-react';
+import { Camera, ChevronLeft, ChevronRight, Check, Clock, MapPin, Users, Calendar as CalendarIcon, Tag, PackagePlus, X } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -47,6 +47,12 @@ export default function BookingPage() {
   const [selectedPackage, setSelectedPackage] = useState<Package | null>(null);
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedTime, setSelectedTime] = useState('');
+  const [promoCode, setPromoCode] = useState('');
+  const [appliedPromo, setAppliedPromo] = useState<any>(null);
+  const [promoError, setPromoError] = useState('');
+  const [promoDiscount, setPromoDiscount] = useState(0);
+  const [selectedAddons, setSelectedAddons] = useState<any[]>([]);
+  const [availableAddons, setAvailableAddons] = useState<any[]>([]);
 
   // Fetch categories
   const { data: categoriesData, isLoading: loadingCategories } = useFetch<Category[]>(
@@ -68,6 +74,20 @@ export default function BookingPage() {
   const bookingWindowDays = getActiveBookingWindowDays(bookingSettings);
   const bookingAdvanceNoticeDays = getBookingAdvanceNoticeDays(bookingSettings);
   const bookingMaxPerSlot = getBookingMaxPerSlot(bookingSettings);
+
+  // Parse addons and promos from settings
+  useEffect(() => {
+    try {
+      const bs = bookingSettings as any;
+      const addonsRaw = bs.addons;
+      if (addonsRaw) {
+        const parsed = JSON.parse(addonsRaw);
+        if (Array.isArray(parsed)) {
+          setAvailableAddons(parsed.filter((a: any) => a.isActive));
+        }
+      }
+    } catch {}
+  }, [bookingSettings]);
   const blackoutDates = new Set(
     (() => {
       try {
@@ -177,9 +197,27 @@ export default function BookingPage() {
     if (!selectedPackage || !selectedDate || !selectedTime) return;
 
     const formData = form.getValues();
+    const addonTotal = selectedAddons.reduce((sum, a) => sum + a.price, 0);
+
+    // Build extra data as JSON
+    const extra: Record<string, any> = {};
+    if (appliedPromo) {
+      extra.promo = appliedPromo.code;
+      extra.discount = promoDiscount;
+    }
+    if (selectedAddons.length > 0) {
+      extra.addons = selectedAddons.map((a) => `${a.name} (${formatPrice(a.price)})`);
+    }
+
+    const extraJson = Object.keys(extra).length > 0 ? JSON.stringify(extra) : '';
+    const enrichedNotes = extraJson
+      ? `${extraJson} | ${formData.notes || ''}`
+      : formData.notes || '';
+
     await createBooking.mutateAsync({
       packageId: selectedPackage.id,
       ...formData,
+      notes: enrichedNotes,
       eventDate: selectedDate,
       eventTime: selectedTime,
     });
@@ -488,9 +526,139 @@ export default function BookingPage() {
                     {...form.register('eventLocation')}
                   />
 
+                  {/* Promo Code */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Kode Promo</label>
+                    <div className="flex gap-2">
+                      <div className="flex-1">
+                        <Input
+                          placeholder="Masukkan kode promo"
+                          value={promoCode}
+                          onChange={(e) => { setPromoCode(e.target.value.toUpperCase()); setPromoError(''); }}
+                        />
+                      </div>
+                      <Button
+                        type="button"
+                        variant={appliedPromo ? 'outline' : 'gold'}
+                        onClick={() => {
+                          if (appliedPromo) {
+                            setAppliedPromo(null);
+                            setPromoDiscount(0);
+                            setPromoCode('');
+                            setPromoError('');
+                            return;
+                          }
+                          if (!promoCode) { setPromoError('Masukkan kode promo'); return; }
+
+                          try {
+                            const bs = bookingSettings as any;
+                            const promosRaw = bs.promos;
+                            if (promosRaw) {
+                              const allPromos = JSON.parse(promosRaw);
+                              if (Array.isArray(allPromos)) {
+                                const found = allPromos.find((p: any) => p.code === promoCode && p.isActive);
+                                if (!found) {
+                                  setPromoError('Kode promo tidak valid');
+                                  return;
+                                }
+                                if (dayjs(found.endDate).isBefore(dayjs())) {
+                                  setPromoError('Kode promo sudah kedaluwarsa');
+                                  return;
+                                }
+                                if (found.used >= found.quota) {
+                                  setPromoError('Kuota promo sudah habis');
+                                  return;
+                                }
+                                if (!selectedPackage) return;
+                                let discount = 0;
+                                if (found.type === 'percentage') {
+                                  discount = selectedPackage.price * (found.value / 100);
+                                  if (found.maxDiscount > 0 && discount > found.maxDiscount) {
+                                    discount = found.maxDiscount;
+                                  }
+                                } else {
+                                  discount = found.value;
+                                }
+                                setAppliedPromo(found);
+                                setPromoDiscount(discount);
+                                setPromoError('');
+                              }
+                            }
+                          } catch { setPromoError('Gagal memvalidasi promo'); }
+                        }}
+                      >
+                        {appliedPromo ? (
+                          <><X className="w-4 h-4 mr-1" /> Hapus</>
+                        ) : (
+                          <Tag className="w-4 h-4 mr-1" />
+                        )}
+                        {appliedPromo ? '' : 'Pakai'}
+                      </Button>
+                    </div>
+                    {promoError && <p className="mt-1 text-xs text-red-500">{promoError}</p>}
+                    {appliedPromo && (
+                      <p className="mt-1 text-xs text-emerald-600 flex items-center gap-1">
+                        <Check className="w-3 h-3" />
+                        Diskon {appliedPromo.type === 'percentage' ? `${appliedPromo.value}%` : formatPrice(appliedPromo.value)} berhasil diterapkan!
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Add-ons */}
+                  {availableAddons.length > 0 && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-3">Layanan Tambahan (Opsional)</label>
+                      <div className="grid gap-3">
+                        {availableAddons.map((addon: any) => {
+                          const isSelected = selectedAddons.some((a) => a.id === addon.id);
+                          return (
+                            <button
+                              key={addon.id}
+                              type="button"
+                              onClick={() => {
+                                if (isSelected) {
+                                  setSelectedAddons(selectedAddons.filter((a) => a.id !== addon.id));
+                                } else {
+                                  setSelectedAddons([...selectedAddons, addon]);
+                                }
+                              }}
+                              className={`flex items-center justify-between p-4 rounded-xl border text-left transition-all ${
+                                isSelected
+                                  ? 'theme-accent-selected'
+                                  : 'border-gray-200 hover:border-gray-300 bg-white'
+                              }`}
+                            >
+                              <div className="flex items-center gap-3">
+                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                                  isSelected ? 'theme-accent-bg-soft-strong' : 'bg-gray-100'
+                                }`}>
+                                  <PackagePlus className={`w-4 h-4 ${isSelected ? 'theme-accent-text' : 'text-gray-400'}`} />
+                                </div>
+                                <div>
+                                  <p className="font-medium text-gray-900 text-sm">{addon.name}</p>
+                                  {addon.description && (
+                                    <p className="text-xs text-gray-500">{addon.description}</p>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="font-semibold text-gray-900 text-sm">{formatPrice(addon.price)}</span>
+                                <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${
+                                  isSelected ? 'theme-accent-border theme-accent-bg-soft-strong' : 'border-gray-300'
+                                }`}>
+                                  {isSelected && <Check className="w-3 h-3 theme-accent-text" />}
+                                </div>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
                   <Textarea
                     label="Catatan (Opsional)"
-                    placeholder="Tambahkan catatan jika ada"
+                    placeholder="Tambahkan catatan jika ada..."
                     {...form.register('notes')}
                   />
                 </form>
@@ -532,14 +700,43 @@ export default function BookingPage() {
                         <span className="font-semibold text-gray-900">{formatPrice(selectedPackage.price)}</span>
                       </div>
 
-                      <div className="flex justify-between items-center text-sm">
-                        <span className="text-gray-500">DP (30%)</span>
-                        <span className="font-medium text-gray-900">{formatPrice(selectedPackage.price * 0.3)}</span>
+                      {/* Selected Add-ons */}
+                      {selectedAddons.map((addon) => (
+                        <div key={addon.id} className="flex justify-between items-center text-sm">
+                          <span className="text-gray-500 flex items-center gap-1">
+                            <PackagePlus className="w-3.5 h-3.5 theme-accent-text" />
+                            {addon.name}
+                          </span>
+                          <span className="font-medium text-gray-900">+{formatPrice(addon.price)}</span>
+                        </div>
+                      ))}
+
+                      {/* Promo Discount */}
+                      {appliedPromo && promoDiscount > 0 && (
+                        <div className="flex justify-between items-center text-sm">
+                          <span className="text-emerald-600 flex items-center gap-1">
+                            <Tag className="w-3.5 h-3.5" />
+                            Diskon {appliedPromo.code}
+                          </span>
+                          <span className="font-medium text-emerald-600">-{formatPrice(promoDiscount)}</span>
+                        </div>
+                      )}
+
+                      <hr className="border-gray-100" />
+
+                      {/* Total */}
+                      <div className="flex justify-between items-center">
+                        <span className="font-semibold text-gray-900">Total</span>
+                        <span className="text-lg font-bold text-gradient-gold">
+                          {formatPrice(Math.max(0, selectedPackage.price + selectedAddons.reduce((sum, a) => sum + a.price, 0) - promoDiscount))}
+                        </span>
                       </div>
 
                       <div className="flex justify-between items-center text-sm">
-                        <span className="text-gray-500">Sisa Pembayaran</span>
-                        <span className="font-medium text-gray-900">{formatPrice(selectedPackage.price * 0.7)}</span>
+                        <span className="text-gray-500">DP (30%)</span>
+                        <span className="font-medium text-gray-900">
+                          {formatPrice(Math.max(0, (selectedPackage.price + selectedAddons.reduce((sum, a) => sum + a.price, 0) - promoDiscount) * 0.3))}
+                        </span>
                       </div>
 
                       <hr className="border-gray-100" />

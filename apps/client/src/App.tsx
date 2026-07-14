@@ -25,6 +25,11 @@ import AdminTeam from '@/pages/admin/team/AdminTeam';
 import AdminReports from '@/pages/admin/reports/AdminReports';
 import AdminWebsite from '@/pages/admin/website/AdminWebsite';
 import AdminAdministrators from '@/pages/admin/administrators/AdminAdministrators';
+import AdminInvoices from '@/pages/admin/invoices/AdminInvoices';
+import AdminAddons from '@/pages/admin/addons/AdminAddons';
+import AdminPromos from '@/pages/admin/promos/AdminPromos';
+import AdminGallery from '@/pages/admin/gallery/AdminGallery';
+import AdminVideos from '@/pages/admin/videos/AdminVideos';
 import AdminGuide from '@/pages/admin/AdminGuide';
 import LoadingScreen from '@/components/LoadingScreen';
 
@@ -91,7 +96,14 @@ export default function App() {
         <Route path="team" element={<AdminTeam />} />
         <Route path="reports/*" element={<AdminReports />} />
         <Route path="website/*" element={<AdminWebsite />} />
-        <Route path="administrators/*" element={<AdminAdministrators />} />
+        <Route path="invoices" element={<AdminInvoices />} />
+        <Route path="addons" element={<AdminAddons />} />
+        <Route path="promos" element={<AdminPromos />} />
+        <Route path="gallery" element={<AdminGallery />} />
+        <Route path="videos" element={<AdminVideos />} />
+        <Route path="administrators" element={<AdminAdministrators />} />
+        <Route path="administrators/roles" element={<AdminAdministrators />} />
+        <Route path="administrators/logs" element={<AdminAdministrators />} />
         <Route path="guide" element={<AdminGuide />} />
       </Route>
     </Routes>

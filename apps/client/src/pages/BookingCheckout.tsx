@@ -1,8 +1,9 @@
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { CheckCircle, Printer, Camera, Upload } from 'lucide-react';
+import { CheckCircle, Printer, Camera, Upload, Tag, PackagePlus } from 'lucide-react';
 import Button from '@/components/ui/button';
 import Card from '@/components/ui/card';
+
 import { formatPrice, getStatusColor, getStatusLabel } from '@/lib/utils';
 import { useFetch } from '@/hooks/useQuery';
 import type { Booking, WebsiteSettings } from '@/types';
@@ -157,9 +158,67 @@ export default function BookingCheckout() {
               {/* Price Detail */}
               <div className="space-y-2 mb-6">
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">Total Harga</span>
+                  <span className="text-gray-500">Harga Paket</span>
                   <span className="font-semibold text-gray-900">{formatPrice(booking.totalPrice)}</span>
                 </div>
+
+                {/* Promo & Addon from notes (JSON format) */}
+                {(() => {
+                  const notes = booking.notes || '';
+                  let extra: Record<string, any> | null = null;
+                  try {
+                    const jsonEnd = notes.indexOf('}');
+                    if (jsonEnd >= 0) {
+                      const jsonPart = notes.substring(0, jsonEnd + 1);
+                      extra = JSON.parse(jsonPart);
+                    }
+                  } catch {}
+
+                  if (!extra) {
+                    const promoMatch = notes.match(/\[Promo: ([^|]+)\| Diskon: ([^\]]+)\]/);
+                    const addonMatch = notes.match(/\[Addons: ([^\]]+)\]/);
+                    if (promoMatch || addonMatch) {
+                      extra = {};
+                      if (promoMatch) {
+                        extra.promo = promoMatch[1].trim();
+                        extra.discount = parseInt(promoMatch[2].replace(/[^0-9]/g, '')) || 0;
+                      }
+                      if (addonMatch) extra.addons = addonMatch[1].split(',').map((s: string) => s.trim());
+                    }
+                  }
+
+                  if (!extra || (!extra.promo && !extra.addons)) return null;
+
+                  return (
+                    <>
+                      {extra.promo && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-emerald-600 flex items-center gap-1">
+                            <Tag className="w-3.5 h-3.5" />
+                            Diskon {extra.promo}
+                          </span>
+                          <span className="font-medium text-emerald-600">-{formatPrice(extra.discount || 0)}</span>
+                        </div>
+                      )}
+                      {extra.addons && extra.addons.length > 0 && (
+                        <div className="text-sm">
+                          <p className="text-gray-500 flex items-center gap-1 mb-1">
+                            <PackagePlus className="w-3.5 h-3.5 theme-accent-text" />
+                            Layanan Tambahan:
+                          </p>
+                          <div className="pl-5 space-y-0.5">
+                            {extra.addons.map((a: string, i: number) => (
+                              <p key={i} className="text-gray-700 text-xs">{a}</p>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
+
+                <hr className="border-gray-100" />
+
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-500">DP (30%)</span>
                   <span className="font-medium theme-accent-text">{formatPrice(booking.downPayment)}</span>
