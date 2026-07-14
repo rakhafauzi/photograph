@@ -268,7 +268,7 @@ model Faq {
 model WebsiteSetting {
   id          String   @id @default(uuid())
   key         String   @unique
-  value       String?
+  value       String?  @db.Text
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
